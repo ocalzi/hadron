@@ -59,7 +59,7 @@ SSH is managed by systemd with the following service files:
   - Auto-restart enabled
 
 - **`sshd.socket`**: Socket-activated SSH service
-  - Located at: `/usr/lib/etc/systemd/system/sshd.socket`
+  - Located at: `/usr/lib/systemd/system/sshd.socket`
   - Listens on port 22
   - Alternative to always-running daemon (conflicts with sshd.service)
 
