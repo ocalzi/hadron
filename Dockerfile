@@ -1967,7 +1967,10 @@ RUN mkdir -p /cryptsetup
 WORKDIR /sources
 RUN tar -xf cryptsetup.tar.xz && mv cryptsetup-* cryptsetup
 WORKDIR /sources/cryptsetup
-# TODO: --enable-fips           enable FIPS mode restrictions
+# You can build cryptsetup with fips extensions if you pass the --use-fips flag
+# but that will only work when using gcrypt as the crypto backend
+# Still, its not certified and building with the flag AND openssl will still give you a cryptsetupt hat reports as FIPS capable
+# while its not, so we avoid confusion and just build without fips support at all here.
 RUN ./configure ${COMMON_CONFIGURE_ARGS} --with-crypto-backend=openssl --disable-asciidoc  --disable-nls --disable-ssh-token
 RUN make -s -j${JOBS} -l${MAX_LOAD} && make -s -j${JOBS} -l${MAX_LOAD} install DESTDIR=/cryptsetup
 
