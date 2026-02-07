@@ -110,7 +110,7 @@ ARG OPENSSL_FIPS_VERSION=3.1.2
 RUN wget -q https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz  -O openssl.tar.gz
 RUN wget -q https://www.openssl.org/source/openssl-${OPENSSL_FIPS_VERSION}.tar.gz  -O openssl-fips.tar.gz
 
-ARG OPENSSH_VERSION=10.0p1
+ARG OPENSSH_VERSION=10.2p1
 RUN wget -q https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-${OPENSSH_VERSION}.tar.gz -O openssh.tar.gz
 
 ARG PKGCONFIG_VERSION=2.5.1
@@ -240,7 +240,7 @@ ARG PAM_VERSION=1.7.2
 RUN wget -q https://github.com/linux-pam/linux-pam/releases/download/v${PAM_VERSION}/Linux-PAM-${PAM_VERSION}.tar.xz -O pam.tar.xz
 
 # shadow
-ARG SHADOW_VERSION=4.19.2
+ARG SHADOW_VERSION=4.19.3
 RUN wget -q https://github.com/shadow-maint/shadow/releases/download/${SHADOW_VERSION}/shadow-${SHADOW_VERSION}.tar.xz -O shadow.tar.xz
 
 # alpine aports repo for patches to build under musl
