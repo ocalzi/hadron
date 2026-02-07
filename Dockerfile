@@ -99,7 +99,7 @@ RUN UTIL_LINUX_VERSION_MAJOR="${UTIL_LINUX_VERSION%%.*}" \
     && UTIL_LINUX_VERSION_MINOR="${UTIL_LINUX_VERSION#*.}"; UTIL_LINUX_VERSION_MINOR="${UTIL_LINUX_VERSION_MINOR%.*}" \
     && wget -q https://www.kernel.org/pub/linux/utils/util-linux/v${UTIL_LINUX_VERSION_MAJOR}.${UTIL_LINUX_VERSION_MINOR}/util-linux-${UTIL_LINUX_VERSION}.tar.xz -O util-linux.tar.xz
 
-ARG PYTHON_VERSION=3.14.2
+ARG PYTHON_VERSION=3.14.3
 RUN wget -q https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz -O Python.tar.xz
 
 ARG SQLITE3_VERSION=3.51.2
@@ -318,7 +318,7 @@ ARG SUDO_VERSION=1.9.17p2
 RUN wget -q https://www.sudo.ws/dist/sudo-${SUDO_VERSION}.tar.gz -O sudo.tar.gz
 
 ## pax-utils
-ARG PAX_UTILS_VERSION=1.3.9
+ARG PAX_UTILS_VERSION=1.3.10
 RUN wget -q https://dev.gentoo.org/~sam/distfiles/app-misc/pax-utils/pax-utils-${PAX_UTILS_VERSION}.tar.xz -O pax-utils.tar.xz
 
 ## openscsi
