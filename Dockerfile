@@ -88,7 +88,7 @@ RUN wget -q https://ftpmirror.gnu.org/gawk/gawk-${GAWK_VERSION}.tar.xz -O gawk.t
 ARG CA_CERTIFICATES_VERSION=20251003
 RUN wget -q https://gitlab.alpinelinux.org/alpine/ca-certificates/-/archive/${CA_CERTIFICATES_VERSION}/ca-certificates-${CA_CERTIFICATES_VERSION}.tar.bz2 -O ca-certificates.tar.bz2
 
-ARG SYSTEMD_VERSION=259
+ARG SYSTEMD_VERSION=259.1
 RUN cd /sources/downloads && wget -q https://github.com/systemd/systemd/archive/refs/tags/v${SYSTEMD_VERSION}.tar.gz -O systemd.tar.gz
 
 ARG LIBCAP_VERSION=2.77
@@ -294,7 +294,7 @@ ARG PERL_VERSION=5.42.0
 RUN wget -q http://www.cpan.org/src/5.0/perl-${PERL_VERSION}.tar.xz -O perl.tar.xz
 
 ## coreutils
-ARG COREUTILS_VERSION=9.9
+ARG COREUTILS_VERSION=9.10
 RUN wget -q http://mirror.easyname.at/gnu/coreutils/coreutils-${COREUTILS_VERSION}.tar.xz -O coreutils.tar.xz
 
 ## findutils
