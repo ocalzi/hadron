@@ -149,7 +149,7 @@ ARG LIBNFTNL_VERSION=1.3.1
 RUN wget -q https://www.netfilter.org/projects/libnftnl/files/libnftnl-${LIBNFTNL_VERSION}.tar.xz -O libnftnl.tar.xz
 
 ## kernel
-ARG KERNEL_VERSION=6.18.9
+ARG KERNEL_VERSION=6.19
 RUN wget -q https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz -O linux.tar.xz
 
 ## flex
@@ -188,7 +188,7 @@ ARG KMOD_VERSION=34.2
 RUN wget -q https://www.kernel.org/pub/linux/utils/kernel/kmod/kmod-${KMOD_VERSION}.tar.gz -O kmod.tar.gz
 
 ## dracut
-ARG DRACUT_VERSION=109
+ARG DRACUT_VERSION=110
 RUN wget -q https://github.com/dracut-ng/dracut-ng/archive/refs/tags/${DRACUT_VERSION}.tar.gz -O dracut.tar.gz
 
 ## libaio
