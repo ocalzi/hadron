@@ -95,6 +95,9 @@ jobs:
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
+        with:
+          labels: |
+            org.opencontainers.image.licenses=Apache-2.0
       - name: Build and push
         uses: docker/build-push-action@v6
         env:
@@ -134,6 +137,8 @@ jobs:
         id: metadata
         with:
           images: ghcr.io/${{ github.repository }}-toolchain
+          labels: |
+            org.opencontainers.image.licenses=Apache-2.0
       - uses: int128/docker-manifest-create-action@v2
         id: build
         with:
@@ -187,6 +192,9 @@ jobs:
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
+        with:
+          labels: |
+            org.opencontainers.image.licenses=Apache-2.0
       - name: Build and push
         uses: docker/build-push-action@v6
         env:
@@ -238,6 +246,9 @@ jobs:
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
+        with:
+          labels: |
+            org.opencontainers.image.licenses=Apache-2.0
       - name: Build and push
         uses: docker/build-push-action@v6
         env:
@@ -278,6 +289,8 @@ jobs:
         id: metadata
         with:
           images: ghcr.io/${{ github.repository }}-container
+          labels: |
+            org.opencontainers.image.licenses=Apache-2.0
       - uses: int128/docker-manifest-create-action@v2
         id: build
         with:
@@ -338,6 +351,9 @@ jobs:
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
+        with:
+          labels: |
+            org.opencontainers.image.licenses=Apache-2.0
       - name: Build and push
         uses: docker/build-push-action@v6
         env:
@@ -401,6 +417,9 @@ jobs:
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
+        with:
+          labels: |
+            org.opencontainers.image.licenses=Apache-2.0
       - name: Build and push
         uses: docker/build-push-action@v6
         env:
@@ -452,6 +471,8 @@ jobs:
         id: metadata
         with:
           images: ghcr.io/${{ github.repository }}${{ matrix.kernel == 'cloud' && '-cloud' || '' }}${{ matrix.fips == 'fips' && '-fips' || '' }}
+          labels: |
+            org.opencontainers.image.licenses=Apache-2.0
       - uses: int128/docker-manifest-create-action@v2
         id: build
         with:
@@ -508,6 +529,9 @@ jobs:
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
+        with:
+          labels: |
+            org.opencontainers.image.licenses=Apache-2.0
       - name: Build and push
         uses: docker/build-push-action@v6
         env:
@@ -566,6 +590,9 @@ jobs:
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
+        with:
+          labels: |
+            org.opencontainers.image.licenses=Apache-2.0
       - name: Build and push
         uses: docker/build-push-action@v6
         env:
@@ -612,6 +639,8 @@ jobs:
         id: metadata
         with:
           images: ghcr.io/${{ github.repository }}${{ matrix.kernel == 'cloud' && '-cloud' || '' }}-trusted
+          labels: |
+            org.opencontainers.image.licenses=Apache-2.0
       - uses: int128/docker-manifest-create-action@v2
         id: build
         with:
