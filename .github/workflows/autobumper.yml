@@ -127,7 +127,7 @@ jobs:
                 echo "PR #$PR_NUMBER is closed and not merged. Attempting to reopen."
                 if ! gh pr reopen $PR_NUMBER --repo kairos-io/hadron; then
                   echo "Failed to reopen PR. Creating a new one."
-                  gh pr create --title "Automatic version bumps" --body "This PR contains automatic version bumps." --head bumps-${{ matrix.config }} --base main --repo kairos-io/hadron --label "auto-bump" --reviewer "@kairos-io/maintainers"
+                  gh pr create --title "Automatic version bumps" --body "This PR contains automatic version bumps." --head bumps-${{ matrix.config }} --base main --repo kairos-io/hadron --label "auto-bump" --reviewer "kairos-io/maintainers"
                 fi
               else
                 echo "PR #$PR_NUMBER is merged. Nothing to do."
@@ -137,5 +137,5 @@ jobs:
             fi
           else
             echo "No PR found. Creating a new one."
-            gh pr create --title "Automatic version bumps" --body "This PR contains automatic version bumps." --head bumps-${{ matrix.config }} --base main --repo kairos-io/hadron --label "auto-bump" --reviewer "@kairos-io/maintainers"
+            gh pr create --title "Automatic version bumps" --body "This PR contains automatic version bumps." --head bumps-${{ matrix.config }} --base main --repo kairos-io/hadron --label "auto-bump" --reviewer "kairos-io/maintainers"
           fi
