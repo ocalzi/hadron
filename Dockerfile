@@ -274,8 +274,8 @@ ARG MAKE_VERSION=4.4.1
 RUN wget -q https://mirror.netcologne.de/gnu/make/make-${MAKE_VERSION}.tar.gz -O make.tar.gz
 
 ## binutils (for stage0)
-ARG BINUTILS_VERSION=2.45.1
-RUN wget -q http://mirror.easyname.at/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.xz -O binutils.tar.xz
+ARG BINUTILS_VERSION=2.46.0
+RUN wget -q https://sourceware.org/pub/binutils/releases/binutils-${BINUTILS_VERSION}.tar.xz -O binutils.tar.xz
 
 ## popt
 ARG POPT_VERSION=1.19
@@ -2266,6 +2266,10 @@ WORKDIR /sources
 RUN tar -xf shim.tar.bz2 && mv shim-* shim
 WORKDIR /sources/shim
 RUN mkdir -p /shim/usr/share/efi/
+# Fix the make.defaults to update the objcopy command to use the proper --output-target instead of --target as the flag has changed on binutils 2.46
+# When a new shim version is released, this will be fixed (current shim version is 16.1)
+# https://github.com/rhboot/shim/commit/c4665d282072df2ed8ab6ae1d5fa0de41e5db02f
+RUN sed -i 's/--target efi-app-$(ARCH)/--output-target efi-app-$(ARCH)/' Make.defaults
 # Install it to a temp folder as the dir struct is terrible
 # and we want it to be available at /usr/share/efi/shimXX.efi
 # TEMP workaround, we should add our paths into the sdk so agent and aurora both search for the proper shim path
