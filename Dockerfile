@@ -2860,8 +2860,6 @@ COPY --from=findutils /findutils /findutils
 RUN rsync -aHAX --keep-dirlinks  /findutils/. /merge
 COPY --from=gzip /gzip /gzip
 RUN rsync -aHAX --keep-dirlinks  /gzip/. /merge
-COPY --from=kernel-modules /sources/kernel /merge/usr/src/linux
-COPY --from=libelf /libelf /merge
 
 FROM scratch AS toolchain
 # These are the default values for the toolchain
