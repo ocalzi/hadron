@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - '../../examples/add-packages/**'
+      - '.github/workflows/examples.yml'
 
 jobs:
   build:
@@ -16,6 +17,7 @@ jobs:
           - "Dockerfile.git"
           - "Dockerfile.gpg"
           - "Dockerfile.fwupd"
+          - "Dockerfile.nvidia"
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
