@@ -28,7 +28,6 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           file: examples/add-packages/Dockerfile.nvidia
-          platforms: linux/${{ inputs.target_arch }}
           tags: ttl.sh/hadron-nvidia:${{ inputs.hadron_version }}-nvidia-${{ inputs.nvidia_version }}-${{ github.sha }}
           build-args: |
             HADRON_VERSION=${{ inputs.hadron_version }}
