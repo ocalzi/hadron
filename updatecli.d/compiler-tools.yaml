@@ -8,7 +8,7 @@ sources:
     spec:
       command: |
         git ls-remote --refs --tags git://gcc.gnu.org/git/gcc.git | grep -v '\^{}' \
-        | awk -F/ '{print $NF}' | grep -E 'gcc-14\.*' \
+        | awk -F/ '{print $NF}' | grep -E 'gcc-15\.*' \
         | sort -V | tail -n 1
     transformers:
       - trimprefix: gcc-
