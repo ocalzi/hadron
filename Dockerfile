@@ -1921,6 +1921,15 @@ RUN if [ ${ARCH} = "aarch64" ]; then \
     fi
 # link vmlinuz to our kernel
 RUN ln -sfv /kernel/vmlinuz-$(cat /kernel/kernel-release) /kernel/vmlinuz
+# Build and install DTBs for aarch64. Required for bare-metal boards like RPi4:
+# without bcm2711-rpi-4-b.dtb on the boot FAT partition the firmware falls back
+# to a minimal built-in DT that omits peripheral nodes (emmc2, etc.).
+# The cloud config has CONFIG_ARCH_BCM=n so no BCM DTBs will be produced there;
+# the copy is silently skipped in that case.
+RUN if [ ${ARCH} = "aarch64" ]; then \
+    ARCH=arm64 make -s -j${JOBS} -l${MAX_LOAD} dtbs; \
+    cp arch/arm64/boot/dts/broadcom/bcm2711*.dtb /kernel/ 2>/dev/null || true; \
+    fi
 
 FROM kernel-build AS kernel-no-fips
 # Nothing to do here, just a placeholder
