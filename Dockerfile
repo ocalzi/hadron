@@ -13,7 +13,7 @@ ARG CFLAGS
 
 # Base image with build tools
 # Use sha. Otherwise the tag can get updated and break reproducibility and force rebuilds for apparent no reason
-FROM alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659 AS alpine-base
+FROM alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11 AS alpine-base
 RUN apk update && \
     apk add --no-cache git bash wget bash perl build-base make patch busybox-static \
     curl m4 xz texinfo bison gawk gzip zstd-dev coreutils bzip2 tar rsync \
@@ -107,7 +107,7 @@ ARG LIBCAP_VERSION=2.78
 RUN wget -q https://kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-${LIBCAP_VERSION}.tar.xz -O libcap.tar.xz
 
 FROM sources-downloader-base AS util-linux-download
-ARG UTIL_LINUX_VERSION=2.41.3
+ARG UTIL_LINUX_VERSION=2.42
 RUN UTIL_LINUX_VERSION_MAJOR="${UTIL_LINUX_VERSION%%.*}" \
     && UTIL_LINUX_VERSION_MINOR="${UTIL_LINUX_VERSION#*.}"; UTIL_LINUX_VERSION_MINOR="${UTIL_LINUX_VERSION_MINOR%.*}" \
     && wget -q https://www.kernel.org/pub/linux/utils/util-linux/v${UTIL_LINUX_VERSION_MAJOR}.${UTIL_LINUX_VERSION_MINOR}/util-linux-${UTIL_LINUX_VERSION}.tar.xz -O util-linux.tar.xz
@@ -236,7 +236,7 @@ ARG JSONC_VERSION=0.18
 RUN wget -q https://s3.amazonaws.com/json-c_releases/releases/json-c-${JSONC_VERSION}.tar.gz -O json-c.tar.gz
 
 FROM sources-downloader-base AS cmake-download
-ARG CMAKE_VERSION=4.3.1
+ARG CMAKE_VERSION=4.3.2
 RUN wget -q https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}.tar.gz -O cmake.tar.gz
 
 FROM sources-downloader-base AS urcu-download
@@ -293,8 +293,8 @@ ARG GMP_VERSION=6.3.0
 RUN wget -q http://mirror.netcologne.de/gnu/gmp/gmp-${GMP_VERSION}.tar.bz2 -O gmp.tar.bz2
 
 FROM sources-downloader-base AS mpc-download
-ARG MPC_VERSION=1.3.1
-RUN wget -q http://mirror.netcologne.de/gnu/mpc/mpc-${MPC_VERSION}.tar.gz -O mpc.tar.gz
+ARG MPC_VERSION=1.4.1
+RUN wget -q http://mirror.netcologne.de/gnu/mpc/mpc-${MPC_VERSION}.tar.xz -O mpc.tar.xz
 
 FROM sources-downloader-base AS mpfr-download
 ARG MPFR_VERSION=4.2.2
@@ -321,11 +321,11 @@ ARG READLINE_VERSION=8.3
 RUN wget -q http://mirror.easyname.at/gnu/readline/readline-${READLINE_VERSION}.tar.gz -O readline.tar.gz
 
 FROM sources-downloader-base AS perl-download
-ARG PERL_VERSION=5.42.1
+ARG PERL_VERSION=5.42.2
 RUN wget -q https://github.com/Perl/perl5/archive/refs/tags/v${PERL_VERSION}.tar.gz -O perl.tar.gz
 
 FROM sources-downloader-base AS coreutils-download
-ARG COREUTILS_VERSION=9.10
+ARG COREUTILS_VERSION=9.11
 RUN wget -q http://mirror.easyname.at/gnu/coreutils/coreutils-${COREUTILS_VERSION}.tar.xz -O coreutils.tar.xz
 
 FROM sources-downloader-base AS findutils-download
@@ -369,7 +369,7 @@ ARG TPM2_TSS_VERSION=4.1.3
 RUN wget -q https://github.com/tpm2-software/tpm2-tss/releases/download/${TPM2_TSS_VERSION}/tpm2-tss-${TPM2_TSS_VERSION}.tar.gz -O tpm2-tss.tar.gz
 
 FROM sources-downloader-base AS libxml2-download
-ARG LIBXML2_VERSION=2.15.2
+ARG LIBXML2_VERSION=2.15.3
 RUN major="${LIBXML2_VERSION%%.*}" \
  && minor="${LIBXML2_VERSION#*.}"; minor="${minor%%.*}" \
  && LIBXML2_VERSION_MAJOR_AND_MINOR="${major}.${minor}" \
@@ -473,7 +473,7 @@ COPY --from=busybox-download /sources/downloads/busybox.tar.bz2 /sources/downloa
 COPY --from=musl-download /sources/downloads/musl.tar.gz /sources/downloads/
 COPY --from=gcc-download /sources/downloads/gcc.tar.xz /sources/downloads/
 COPY --from=gmp-download /sources/downloads/gmp.tar.bz2 /sources/downloads/
-COPY --from=mpc-download /sources/downloads/mpc.tar.gz /sources/downloads/
+COPY --from=mpc-download /sources/downloads/mpc.tar.xz /sources/downloads/
 COPY --from=mpfr-download /sources/downloads/mpfr.tar.bz2 /sources/downloads/
 COPY --from=make-download /sources/downloads/make.tar.gz /sources/downloads/
 COPY --from=binutils-download /sources/downloads/binutils.tar.xz /sources/downloads/
@@ -679,11 +679,11 @@ FROM stage0 AS gcc-stage0
 ARG JOBS
 COPY --from=sources-downloader /sources/downloads/gcc.tar.xz .
 COPY --from=sources-downloader /sources/downloads/gmp.tar.bz2 .
-COPY --from=sources-downloader /sources/downloads/mpc.tar.gz .
+COPY --from=sources-downloader /sources/downloads/mpc.tar.xz .
 COPY --from=sources-downloader /sources/downloads/mpfr.tar.bz2 .
 RUN tar -xf gcc.tar.xz && mv gcc-* gcc
 RUN tar -xf gmp.tar.bz2 && mv -v gmp-* gcc/gmp
-RUN tar -xf mpc.tar.gz && mv -v mpc-* gcc/mpc
+RUN tar -xf mpc.tar.xz && mv -v mpc-* gcc/mpc
 RUN tar -xf mpfr.tar.bz2 && mv -v mpfr-* gcc/mpfr
 
 RUN <<EOT bash
@@ -1430,33 +1430,30 @@ RUN make -s -j${JOBS} -l${MAX_LOAD} install 2>&1
 
 
 ## util-linux
-FROM bash AS util-linux
+FROM python-build AS util-linux
+ARG JOBS
+RUN pip3 install meson ninja
+RUN mkdir -p /util-linux
+COPY --from=bison /bison /
+COPY --from=flex /flex /
+COPY --from=m4 /m4 /
+COPY --from=libcap /libcap /libcap
+RUN rsync -aHAX --keep-dirlinks  /libcap/. /
+COPY --from=coreutils /coreutils /coreutils
+RUN rsync -aHAX --keep-dirlinks  /coreutils/. /
+WORKDIR /sources
+COPY --from=sources-downloader /sources/downloads/util-linux.tar.xz .
+RUN tar -xf util-linux.tar.xz && mv util-linux-* util-linux
+WORKDIR /sources/util-linux
+# This is fixed on master so drop it on next version
+COPY patches/util-linux-musl-AT_HANDLE_FID.patch .
+RUN patch -p1 < util-linux-musl-AT_HANDLE_FID.patch
+RUN meson setup buildDir --prefix=/usr --buildtype=minsize -Dstrip=true \
+    -Dbuild-uuidd=disabled -Dbuild-libsmartcols=disabled -Dbtrfs=disabled -Dbuild-plymouth-support=disabled \
+    -Dnls=disabled -Dbuild-minix=disabled -Dbuild-cramfs=disabled -Dbuild-bfs=disabled -Dprogram-tests=false \
+    -Dfs-search-path-extra=/usr/sbin -Dvendordir=/usr/lib
+RUN DESTDIR=/util-linux ninja -j${JOBS} -C buildDir install
 
-COPY --from=sources-downloader /sources/downloads/util-linux.tar.xz /sources/
-
-RUN rm /bin/sh && ln -s /bin/bash /bin/sh && mkdir -p /sources && cd /sources && tar -xf util-linux.tar.xz && \
-    mv util-linux-* util-linux && \
-    cd util-linux && mkdir -p /util-linux && ./configure ${COMMON_CONFIGURE_ARGS} --disable-dependency-tracking  --prefix=/usr \
-    --libdir=/usr/lib \
-    --disable-silent-rules \
-    --enable-newgrp \
-    --disable-uuidd \
-    --disable-liblastlog2 \
-    --disable-nls \
-    --disable-kill \
-    --disable-chfn-chsh \
-    --with-vendordir=/usr/lib \
-    --enable-fs-paths-extra=/usr/sbin \
-    --disable-pam-lastlog2 \
-    --disable-asciidoc \
-    --disable-poman \
-    --disable-minix \
-    --disable-cramfs \
-    --disable-bfs \
-    --without-python \
-    --with-sysusersdir=/usr/lib/sysusers.d/ \
-    && make -s -j${JOBS} -l${MAX_LOAD} DESTDIR=/util-linux && \
-    make -s -j${JOBS} -l${MAX_LOAD} DESTDIR=/util-linux install && make -s -j${JOBS} -l${MAX_LOAD} install
 
 ## gperf
 FROM stage1 AS gperf
@@ -1502,14 +1499,14 @@ WORKDIR /sources
 COPY --from=sources-downloader /sources/downloads/gdb.tar.gz .
 COPY --from=sources-downloader /sources/downloads/gmp.tar.bz2 .
 COPY --from=sources-downloader /sources/downloads/mpfr.tar.bz2 .
-COPY --from=sources-downloader /sources/downloads/mpc.tar.gz .
+COPY --from=sources-downloader /sources/downloads/mpc.tar.xz .
 COPY --from=expat /expat /
 COPY --from=python-build /python /
 
 RUN tar -xf gmp.tar.bz2
 RUN tar -xf mpfr.tar.bz2
 RUN tar -xf gdb.tar.gz && mv gdb-* gdb
-RUN tar -xf mpc.tar.gz
+RUN tar -xf mpc.tar.xz
 RUN mv -v mpfr-* gdb/mpfr
 RUN mv -v gmp-* gdb/gmp
 RUN mv -v mpc-* gdb/mpc
