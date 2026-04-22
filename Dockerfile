@@ -1876,6 +1876,9 @@ RUN rsync -aHAX --keep-dirlinks  /findutils/. /
 COPY --from=diffutils /diffutils /diffutils
 RUN rsync -aHAX --keep-dirlinks  /diffutils/. /
 
+COPY --from=grep /grep /grep
+RUN rsync -aHAX --keep-dirlinks  /grep/. /
+
 COPY --from=sources-downloader /sources/downloads/linux.tar.xz /sources/
 
 RUN mkdir -p /sources/kernel-configs
@@ -1911,12 +1914,20 @@ FROM kernel-${KERNEL_TYPE} AS kernel-build
 ARG JOBS
 WORKDIR /sources/kernel
 # This only builds the kernel
-RUN if [ ${ARCH} = "aarch64" ]; then \
-    ARCH=arm64 make -s -j${JOBS} -l${MAX_LOAD} Image; \
+# Linux 7.0 added __attribute_const__ to include/uapi/linux/swab.h. That macro is defined in
+# include/linux/compiler_types.h (kernel-internal), which host tools never include. Defining it
+# empty silences the undefined-macro errors; it is only an optimization hint and has no effect
+# on correctness for build-time host tools such as objtool and insn_sanity.
+RUN hcflags='-D__attribute_const__=' && \
+    if [ ${ARCH} = "aarch64" ]; then \
+    ARCH=arm64 make olddefconfig; \
+    ARCH=arm64 make -s -j${JOBS} -l${MAX_LOAD} HOSTCFLAGS="$hcflags" Image; \
     elif [ ${ARCH} = "riscv64" ]; then \
-    ARCH=riscv make -s -j${JOBS} -l${MAX_LOAD} Image; \
+    ARCH=riscv make olddefconfig; \
+    ARCH=riscv make -s -j${JOBS} -l${MAX_LOAD} HOSTCFLAGS="$hcflags" Image; \
     else \
-    ARCH=x86_64 make -s -j${JOBS} -l${MAX_LOAD} bzImage; \
+    ARCH=x86_64 make olddefconfig; \
+    ARCH=x86_64 make -s -j${JOBS} -l${MAX_LOAD} HOSTCFLAGS="$hcflags" bzImage; \
     fi
 RUN if [ ${ARCH} = "aarch64" ]; then \
     export ARCH=arm64; \
@@ -1952,13 +1963,14 @@ FROM kernel-${FIPS} AS kernel
 
 FROM kernel-build AS kernel-modules
 # This builds the modules
-RUN if [ ${ARCH} = "aarch64" ]; then \
+RUN hcflags='-D__attribute_const__=' && \
+    if [ ${ARCH} = "aarch64" ]; then \
     export ARCH=arm64; \
     elif [ ${ARCH} = "riscv64" ]; then \
     export ARCH=riscv; \
     else \
     export ARCH=x86_64;\
-    fi;  make -s -j${JOBS} -l${MAX_LOAD} modules
+    fi;  make -s -j${JOBS} -l${MAX_LOAD} HOSTCFLAGS="$hcflags" modules
 RUN if [ ${ARCH} = "aarch64" ]; then \
     export ARCH=arm64; \
     elif [ ${ARCH} = "riscv64" ]; then \
