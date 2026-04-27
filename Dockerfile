@@ -142,7 +142,7 @@ RUN wget -q https://dbus.freedesktop.org/releases/dbus/dbus-${DBUS_VERSION}.tar.
 
 FROM sources-downloader-base AS expat-download
 # libexpat
-ARG EXPAT_VERSION=2.7.5
+ARG EXPAT_VERSION=2.8.0
 # Use a single var and extract major/minor/patch to build the URL
 RUN EXPAT_VERSION_MAJOR="${EXPAT_VERSION%%.*}" \
  && EXPAT_VERSION_MINOR="${EXPAT_VERSION#*.}"; EXPAT_VERSION_MINOR="${EXPAT_VERSION_MINOR%.*}" \
@@ -156,7 +156,7 @@ ARG SECCOMP_VERSION=2.6.0
 RUN wget -q https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz -O libseccomp.tar.gz
 
 FROM sources-downloader-base AS strace-download
-ARG STRACE_VERSION=6.19
+ARG STRACE_VERSION=7.0
 RUN wget -q https://strace.io/files/${STRACE_VERSION}/strace-${STRACE_VERSION}.tar.xz -O strace.tar.xz
 
 FROM sources-downloader-base AS kbd-download
@@ -1430,29 +1430,35 @@ RUN make -s -j${JOBS} -l${MAX_LOAD} install 2>&1
 
 
 ## util-linux
-FROM python-build AS util-linux
-ARG JOBS
-RUN pip3 install meson ninja
-RUN mkdir -p /util-linux
-COPY --from=bison /bison /
-COPY --from=flex /flex /
-COPY --from=m4 /m4 /
-COPY --from=libcap /libcap /libcap
-RUN rsync -aHAX --keep-dirlinks  /libcap/. /
-COPY --from=coreutils /coreutils /coreutils
-RUN rsync -aHAX --keep-dirlinks  /coreutils/. /
+FROM bash AS util-linux
 WORKDIR /sources
-COPY --from=sources-downloader /sources/downloads/util-linux.tar.xz .
+COPY --from=sources-downloader /sources/downloads/util-linux.tar.xz /sources/
 RUN tar -xf util-linux.tar.xz && mv util-linux-* util-linux
 WORKDIR /sources/util-linux
 # This is fixed on master so drop it on next version
 COPY patches/util-linux-musl-AT_HANDLE_FID.patch .
 RUN patch -p1 < util-linux-musl-AT_HANDLE_FID.patch
-RUN meson setup buildDir --prefix=/usr --buildtype=minsize -Dstrip=true \
-    -Dbuild-uuidd=disabled -Dbuild-libsmartcols=disabled -Dbtrfs=disabled -Dbuild-plymouth-support=disabled \
-    -Dnls=disabled -Dbuild-minix=disabled -Dbuild-cramfs=disabled -Dbuild-bfs=disabled -Dprogram-tests=false \
-    -Dfs-search-path-extra=/usr/sbin -Dvendordir=/usr/lib
-RUN DESTDIR=/util-linux ninja -j${JOBS} -C buildDir install
+RUN ./configure ${COMMON_CONFIGURE_ARGS} --disable-dependency-tracking  --prefix=/usr \
+    --libdir=/usr/lib \
+    --disable-silent-rules \
+    --enable-newgrp \
+    --disable-uuidd \
+    --disable-liblastlog2 \
+    --disable-nls \
+    --disable-kill \
+    --disable-chfn-chsh \
+    --with-vendordir=/usr/lib \
+    --enable-fs-paths-extra=/usr/sbin \
+    --disable-pam-lastlog2 \
+    --disable-asciidoc \
+    --disable-poman \
+    --disable-minix \
+    --disable-cramfs \
+    --disable-bfs \
+    --without-python \
+    --with-sysusersdir=/usr/lib/sysusers.d/
+RUN make -s -j${JOBS} -l${MAX_LOAD} DESTDIR=/util-linux
+RUN make -s -j${JOBS} -l${MAX_LOAD} DESTDIR=/util-linux install
 
 
 ## gperf
@@ -2355,7 +2361,7 @@ RUN if [ "${ARCH}" = "aarch64" ]; then \
 		-o /grub-efi/usr/lib/grub/${grub_format}/${grub_efi_name} \
 		loopback cat squash4 xzio gzio serial regexp part_gpt ext2 fat normal \
         boot configfile part_msdos linux echo search search_label search_fs_uuid \
-        search_fs_file chain loadenv gfxterm all_video iso9660 help test
+        search_fs_file chain loadenv gfxterm all_video iso9660 help test smbios
 
 
 FROM grub-base AS grub-bios
@@ -3488,6 +3494,8 @@ COPY files/sysctl/* /etc/sysctl.d/
 COPY files/login.defs /etc/login.defs
 ## Remove users stuff
 RUN rm -f /etc/passwd /etc/shadow /etc/group /etc/gshadow
+## Override root shell to /bin/bash (systemd basic.conf default is /bin/sh); /etc/sysusers.d/ wins over /usr/lib/sysusers.d/
+COPY files/systemd/00-root.conf /etc/sysusers.d/00-root.conf
 ## Create any missing users from scratch
 RUN systemd-sysusers
 ## Link /lib/firmware into /usr/local/lib/firmware for firmware loading
