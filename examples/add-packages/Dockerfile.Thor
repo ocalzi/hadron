@@ -3,6 +3,8 @@
 # (Linux_for_Tegra public_sources) per Jetson Linux Developer Guide.
 ARG JOBS=10
 ARG BASE_IMAGE=ghcr.io/kairos-io/hadron
+ARG TOOLCHAIN_IMAGE=ghcr.io/kairos-io/hadron-toolchain
+# Tag is shared between base and toolchain images since they are developed in tandem.
 ARG BASE_TAG=main
 
 # ── 1. Download L4T public_sources, extract 4 inner tarballs into one tree ───
@@ -47,7 +49,7 @@ RUN for p in *.patch; do echo "applying $p"; patch -p1 < "$p"; done && rm *.patc
 WORKDIR /src
 
 # ── 2. Build kernel + OOT modules ────────────────────────────────────────────
-FROM ${BASE_IMAGE}-toolchain:${BASE_TAG} AS kernel-build
+FROM ${TOOLCHAIN_IMAGE}:${BASE_TAG} AS kernel-build
 ARG JOBS
 # CROSS_COMPILE-prefixed binutils symlinks (until Hadron toolchain ships them)
 RUN for t in ld as ar nm objcopy objdump ranlib readelf strip; do \
