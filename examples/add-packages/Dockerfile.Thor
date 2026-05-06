@@ -2,6 +2,8 @@
 # Builds NVIDIA Tegra kernel + OOT modules using NVIDIA's official source bundle
 # (Linux_for_Tegra public_sources) per Jetson Linux Developer Guide.
 ARG JOBS=10
+ARG BASE_IMAGE=ghcr.io/kairos-io/hadron
+ARG BASE_TAG=main
 
 # ── 1. Download L4T public_sources, extract 4 inner tarballs into one tree ───
 FROM alpine AS nvidia-sources
@@ -45,7 +47,7 @@ RUN for p in *.patch; do echo "applying $p"; patch -p1 < "$p"; done && rm *.patc
 WORKDIR /src
 
 # ── 2. Build kernel + OOT modules ────────────────────────────────────────────
-FROM ghcr.io/kairos-io/hadron-toolchain:main AS kernel-build
+FROM ${BASE_IMAGE}-toolchain:${BASE_TAG} AS kernel-build
 ARG JOBS
 # CROSS_COMPILE-prefixed binutils symlinks (until Hadron toolchain ships them)
 RUN for t in ld as ar nm objcopy objdump ranlib readelf strip; do \
@@ -165,7 +167,7 @@ RUN ldconfig -r /output -f /etc/ld.so.conf
 RUN cp /usr/sbin/ldconfig.real /output/usr/sbin/ldconfig
 
 # ── 6. Final Hadron extension image ──────────────────────────────────────────
-FROM quay.io/itxaka/nvidia:main AS hadron-extension
+FROM ${BASE_IMAGE}:${BASE_TAG} AS hadron-extension
 # NVIDIA Tegra kernel (replaces vanilla Hadron kernel)
 RUN rm -Rf /boot/* && rm -rf /lib/modules/* && rm -rf /usr/share/kernel-misc/*
 # kernel image + modules (both kernel-tree and OOT) + dtbs from kernel-build stage
