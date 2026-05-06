@@ -59,6 +59,35 @@ RUN for t in ld as ar nm objcopy objdump ranlib readelf strip; do \
 COPY --from=nvidia-sources /src /src
 WORKDIR /src
 
+# Append extra Kconfig symbols to the Tegra arm64 defconfig before NVIDIA's
+# top-level Makefile runs `make defconfig`. Last setting wins, so explicit
+# `# CONFIG_FOO is not set` lines in the stock defconfig get overridden, and
+# `make olddefconfig` (run by NVIDIA's Makefile) resolves any new symbols.
+#
+# - SCSI_ISCSI_ATTRS / ISCSI_TCP: register NETLINK_ISCSI socket family so
+#   iscsiuio + iscsid can talk to the kernel (fixes
+#   "NIC_NL can not create NETLINK_ISCSI socket [Protocol not supported]").
+# - LIBNVDIMM / BLK_DEV_PMEM / DAX / DEV_DAX_PMEM / ACPI_NFIT: NVDIMM stack
+#   (libnvdimm, nd_pmem, dax_pmem, nfit modules).
+RUN DEFCONFIG=$(ls /src/kernel/kernel-noble/arch/arm64/configs/ \
+        | grep -E '^(tegra_)?defconfig$' | head -1) \
+    && echo "Patching arch/arm64/configs/${DEFCONFIG}" \
+    && cat >> /src/kernel/kernel-noble/arch/arm64/configs/${DEFCONFIG} <<'EOF'
+
+# --- Hadron additions ---
+CONFIG_SCSI_ISCSI_ATTRS=m
+CONFIG_ISCSI_TCP=m
+CONFIG_ISCSI_BOOT_SYSFS=m
+CONFIG_LIBNVDIMM=m
+CONFIG_BLK_DEV_PMEM=m
+CONFIG_NVDIMM_PFN=y
+CONFIG_NVDIMM_DAX=y
+CONFIG_DAX=y
+CONFIG_DEV_DAX=m
+CONFIG_DEV_DAX_PMEM=m
+CONFIG_ACPI_NFIT=m
+EOF
+
 # Step 1 — kernel
 RUN NPROC=${JOBS} make -C kernel
 
@@ -197,4 +226,6 @@ RUN printf 'options nvidia NVreg_TegraGpuPgMask=-1\noptions nvidia-drm modeset=1
 RUN echo "options nv-gpu-static-pg gpu_pg_mask_param=4294967295" > /etc/modprobe.d/nv-gpu-static-pg.conf
 RUN echo "blacklist nouveau" > /etc/modprobe.d/blacklist-nouveau.conf
 RUN printf 'blacklist tegradisp_nvkms\nblacklist tegradisp_rm\nblacklist nvmap\n' > /etc/modprobe.d/denylist-oot-modules.conf
+# Remove nv-graphics.service (For weston and such, not needed in our case)
+RUN systemctl disable nv-graphics.service && rm /etc/systemd/system/nv-graphics.service
 CMD ["/bin/bash", "-l"]
