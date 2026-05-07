@@ -2006,8 +2006,9 @@ RUN ARCH=arm64 kver=$(make -s kernelrelease) && \
 
 FROM rpi-kernel-build AS rpi-kernel-modules
 ARG JOBS
+RUN ARCH=arm64 make -s -j${JOBS} -l${MAX_LOAD} modules
 RUN ARCH=arm64 ZSTD_CLEVEL=19 INSTALL_MOD_PATH="/modules" INSTALL_MOD_STRIP=1 DEPMOD=true \
-    make -s -j${JOBS} -l${MAX_LOAD} modules modules_install
+    make -s -j${JOBS} -l${MAX_LOAD} modules_install
 # ─────────────────────────────────────────────────────────────────────────────
 
 FROM kernel-base AS kernel-headers
