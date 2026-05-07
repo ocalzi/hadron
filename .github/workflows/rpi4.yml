@@ -1,0 +1,115 @@
+name: 'Build RPi4 Hadron image'
+
+on:
+  push:
+    branches: [rpi4]
+  workflow_dispatch:
+    inputs:
+      kairos_init_ref:
+        description: 'kairos-init branch/tag to build from'
+        required: false
+        default: 'rpi4-fixes'
+      rpi_kernel_branch:
+        description: 'Raspberry Pi kernel branch (e.g. rpi-6.19.y)'
+        required: false
+        default: 'rpi-6.19.y'
+
+env:
+  KAIROS_INIT_REF: ${{ github.event.inputs.kairos_init_ref || 'rpi4-fixes' }}
+  RPI_KERNEL_BRANCH: ${{ github.event.inputs.rpi_kernel_branch || 'rpi-6.19.y' }}
+  VERSION: v0.0.1
+
+jobs:
+  rpi4-image:
+    runs-on: oracle-vm-32cpu-128gb-arm64
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-buildx-action@master
+        id: buildx
+        with:
+          buildkitd-config-inline: |
+            [worker.oci]
+              max-parallelism = 4
+
+      - name: Build Hadron rpi4 base (RPi kernel fork)
+        env:
+          SOURCE_DATE_EPOCH: 0
+        run: |
+          docker buildx build \
+            --builder "${{ steps.buildx.outputs.name }}" \
+            --platform linux/arm64 \
+            --load \
+            --target rpi4 \
+            --cache-from type=registry,ref=quay.io/kairos/hadron-build-cache:toolchain-arm64,mode=max \
+            --cache-from type=registry,ref=quay.io/kairos/hadron-build-cache:container-arm64,mode=max \
+            --cache-from type=registry,ref=quay.io/kairos/hadron-build-cache:grub-default-arm64,mode=max \
+            --build-arg BOOTLOADER=grub \
+            --build-arg KERNEL_TYPE=default \
+            --build-arg ARCH=aarch64 \
+            --build-arg BUILD_ARCH=aarch64 \
+            --build-arg RPI_KERNEL_BRANCH="${{ env.RPI_KERNEL_BRANCH }}" \
+            --tag hadron-rpi4-base:local \
+            .
+
+      - name: Build kairos-init from branch
+        run: |
+          git clone --depth=1 --branch "${{ env.KAIROS_INIT_REF }}" \
+            https://github.com/kairos-io/kairos-init /tmp/kairos-init
+          sed -i 's/RUN make all$/RUN make all SKIP_UPX=1/' /tmp/kairos-init/Dockerfile
+          docker build --platform linux/arm64 \
+            -t kairos-init-rpi4:local \
+            /tmp/kairos-init
+
+      - name: Apply kairos-init
+        run: |
+          docker build --platform linux/arm64 \
+            --build-arg HADRON_BASE=hadron-rpi4-base:local \
+            --build-arg KAIROS_INIT_IMAGE=kairos-init-rpi4:local \
+            --build-arg MODEL=rpi4 \
+            --build-arg "VERSION=${{ env.VERSION }}-${{ github.sha }}" \
+            -t hadron-rpi4:local - <<'EOF'
+          ARG KAIROS_INIT_IMAGE
+          ARG HADRON_BASE
+          FROM ${KAIROS_INIT_IMAGE} AS kairos-init
+          FROM ${HADRON_BASE}
+          ARG MODEL=rpi4
+          ARG VERSION
+          RUN --mount=type=bind,from=kairos-init,src=/kairos-init,dst=/kairos-init \
+              /kairos-init -l info -s install -m "${MODEL}" --version "${VERSION}" && \
+              /kairos-init -l info -s init   -m "${MODEL}" --version "${VERSION}"
+          EOF
+
+      - name: Build raw disk image via AuroraBoot
+        run: |
+          mkdir -p output
+          cat > /tmp/cloud-config.yaml <<'CLOUDCFG'
+          #cloud-config
+          users:
+            - name: kairos
+              passwd: kairos
+              groups:
+                - admin
+          CLOUDCFG
+          docker run --rm --privileged \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/output:/output" \
+            -v "/tmp/cloud-config.yaml:/cloud-config.yaml:ro" \
+            quay.io/kairos/auroraboot:latest \
+            --debug \
+            --set "disable_http_server=true" \
+            --set "disable_netboot=true" \
+            --set "state_dir=/output" \
+            --set "disk.raw=true" \
+            --set "arch=arm64" \
+            --cloud-config /cloud-config.yaml \
+            --set "container_image=docker:hadron-rpi4:local"
+
+      - name: Upload raw disk image
+        uses: actions/upload-artifact@v4
+        with:
+          name: hadron-rpi4-${{ github.sha }}.img
+          path: output/*.raw
+          retention-days: 14

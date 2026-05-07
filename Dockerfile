@@ -180,6 +180,11 @@ FROM sources-downloader-base AS linux-download
 ARG KERNEL_VERSION=6.19.12
 RUN wget -q https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz -O linux.tar.xz
 
+FROM sources-downloader-base AS rpi-linux-download
+ARG RPI_KERNEL_BRANCH=rpi-6.19.y
+RUN git clone --depth=1 --branch "${RPI_KERNEL_BRANCH}" \
+    https://github.com/raspberrypi/linux /sources/downloads/rpi-linux
+
 FROM sources-downloader-base AS flex-download
 ARG FLEX_VERSION=2.6.4
 RUN wget -q https://github.com/westes/flex/releases/download/v${FLEX_VERSION}/flex-${FLEX_VERSION}.tar.gz -O flex.tar.gz
@@ -1981,6 +1986,30 @@ RUN if [ ${ARCH} = "aarch64" ]; then \
     export ARCH=x86_64;\
     fi;  ZSTD_CLEVEL=19 INSTALL_MOD_PATH="/modules" INSTALL_MOD_STRIP=1 DEPMOD=true make -s -j${JOBS} -l${MAX_LOAD} modules_install
 
+# ── RPi4 kernel (raspberrypi/linux fork, bcm2711_defconfig, always arm64) ────
+FROM kernel-base AS rpi-kernel-base
+ARG RPI_KERNEL_BRANCH=rpi-6.19.y
+RUN rm -rf /sources/kernel
+COPY --from=rpi-linux-download /sources/downloads/rpi-linux/ /sources/kernel/
+WORKDIR /sources/kernel
+RUN make ARCH=arm64 bcm2711_defconfig
+
+FROM rpi-kernel-base AS rpi-kernel-build
+ARG JOBS
+RUN ARCH=arm64 make -s -j${JOBS} -l${MAX_LOAD} Image dtbs
+RUN ARCH=arm64 kver=$(make -s kernelrelease) && \
+    cp arch/arm64/boot/Image /kernel/vmlinuz-${kver} && \
+    ln -sfv vmlinuz-${kver} /kernel/vmlinuz && \
+    make -s ARCH=arm64 kernelrelease > /kernel/kernel-release && \
+    make -s ARCH=arm64 kernelversion > /kernel/kernel-version && \
+    make ARCH=arm64 INSTALL_DTBS_PATH=/kernel/dtbs dtbs_install
+
+FROM rpi-kernel-build AS rpi-kernel-modules
+ARG JOBS
+RUN ARCH=arm64 ZSTD_CLEVEL=19 INSTALL_MOD_PATH="/modules" INSTALL_MOD_STRIP=1 DEPMOD=true \
+    make -s -j${JOBS} -l${MAX_LOAD} modules modules_install
+# ─────────────────────────────────────────────────────────────────────────────
+
 FROM kernel-base AS kernel-headers
 ARG JOBS
 WORKDIR /sources/kernel
@@ -3536,4 +3565,13 @@ RUN /verify_binaries.sh
 ### final image, last in case we call it without a target, it will build this one
 FROM scratch AS default
 COPY --from=full-image-final / /
+CMD ["/bin/bash", "-l"]
+
+### RPi4 image — default with mainline kernel replaced by the RPi fork kernel + DTBs
+FROM default AS rpi4
+RUN rm -f /boot/vmlinuz* /boot/kernel-release /boot/kernel-version /boot/.vmlinuz* && \
+    rm -rf /lib/modules/*
+COPY --from=rpi-kernel-build /kernel/ /boot/
+COPY --from=rpi-kernel-modules /modules/lib/modules/ /lib/modules/
+COPY --from=rpi-kernel-build /kernel/dtbs/ /boot/dtbs/
 CMD ["/bin/bash", "-l"]
