@@ -1992,7 +1992,9 @@ ARG RPI_KERNEL_BRANCH=rpi-6.19.y
 RUN rm -rf /sources/kernel
 COPY --from=rpi-linux-download /sources/downloads/rpi-linux/ /sources/kernel/
 WORKDIR /sources/kernel
-RUN make ARCH=arm64 bcm2711_defconfig
+RUN make ARCH=arm64 bcm2711_defconfig && \
+    scripts/config --disable CONFIG_MODULE_COMPRESS_XZ && \
+    scripts/config --enable CONFIG_MODULE_COMPRESS_ZSTD
 
 FROM rpi-kernel-base AS rpi-kernel-build
 ARG JOBS
