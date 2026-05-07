@@ -2,6 +2,10 @@
 # Builds NVIDIA Tegra kernel + OOT modules using NVIDIA's official source bundle
 # (Linux_for_Tegra public_sources) per Jetson Linux Developer Guide.
 ARG JOBS=10
+ARG BASE_IMAGE=ghcr.io/kairos-io/hadron
+ARG TOOLCHAIN_IMAGE=ghcr.io/kairos-io/hadron-toolchain
+# Tag is shared between base and toolchain images since they are developed in tandem.
+ARG BASE_TAG=main
 
 # ── 1. Download L4T public_sources, extract 4 inner tarballs into one tree ───
 FROM alpine AS nvidia-sources
@@ -45,7 +49,7 @@ RUN for p in *.patch; do echo "applying $p"; patch -p1 < "$p"; done && rm *.patc
 WORKDIR /src
 
 # ── 2. Build kernel + OOT modules ────────────────────────────────────────────
-FROM ghcr.io/kairos-io/hadron-toolchain:main AS kernel-build
+FROM ${TOOLCHAIN_IMAGE}:${BASE_TAG} AS kernel-build
 ARG JOBS
 # CROSS_COMPILE-prefixed binutils symlinks (until Hadron toolchain ships them)
 RUN for t in ld as ar nm objcopy objdump ranlib readelf strip; do \
@@ -54,6 +58,35 @@ RUN for t in ld as ar nm objcopy objdump ranlib readelf strip; do \
 
 COPY --from=nvidia-sources /src /src
 WORKDIR /src
+
+# Append extra Kconfig symbols to the Tegra arm64 defconfig before NVIDIA's
+# top-level Makefile runs `make defconfig`. Last setting wins, so explicit
+# `# CONFIG_FOO is not set` lines in the stock defconfig get overridden, and
+# `make olddefconfig` (run by NVIDIA's Makefile) resolves any new symbols.
+#
+# - SCSI_ISCSI_ATTRS / ISCSI_TCP: register NETLINK_ISCSI socket family so
+#   iscsiuio + iscsid can talk to the kernel (fixes
+#   "NIC_NL can not create NETLINK_ISCSI socket [Protocol not supported]").
+# - LIBNVDIMM / BLK_DEV_PMEM / DAX / DEV_DAX_PMEM / ACPI_NFIT: NVDIMM stack
+#   (libnvdimm, nd_pmem, dax_pmem, nfit modules).
+RUN DEFCONFIG=$(ls /src/kernel/kernel-noble/arch/arm64/configs/ \
+        | grep -E '^(tegra_)?defconfig$' | head -1) \
+    && echo "Patching arch/arm64/configs/${DEFCONFIG}" \
+    && cat >> /src/kernel/kernel-noble/arch/arm64/configs/${DEFCONFIG} <<'EOF'
+
+# --- Hadron additions ---
+CONFIG_SCSI_ISCSI_ATTRS=m
+CONFIG_ISCSI_TCP=m
+CONFIG_ISCSI_BOOT_SYSFS=m
+CONFIG_LIBNVDIMM=m
+CONFIG_BLK_DEV_PMEM=m
+CONFIG_NVDIMM_PFN=y
+CONFIG_NVDIMM_DAX=y
+CONFIG_DAX=y
+CONFIG_DEV_DAX=m
+CONFIG_DEV_DAX_PMEM=m
+CONFIG_ACPI_NFIT=m
+EOF
 
 # Step 1 — kernel
 RUN NPROC=${JOBS} make -C kernel
@@ -165,7 +198,7 @@ RUN ldconfig -r /output -f /etc/ld.so.conf
 RUN cp /usr/sbin/ldconfig.real /output/usr/sbin/ldconfig
 
 # ── 6. Final Hadron extension image ──────────────────────────────────────────
-FROM quay.io/itxaka/nvidia:main AS hadron-extension
+FROM ${BASE_IMAGE}:${BASE_TAG} AS hadron-extension
 # NVIDIA Tegra kernel (replaces vanilla Hadron kernel)
 RUN rm -Rf /boot/* && rm -rf /lib/modules/* && rm -rf /usr/share/kernel-misc/*
 # kernel image + modules (both kernel-tree and OOT) + dtbs from kernel-build stage
@@ -193,4 +226,6 @@ RUN printf 'options nvidia NVreg_TegraGpuPgMask=-1\noptions nvidia-drm modeset=1
 RUN echo "options nv-gpu-static-pg gpu_pg_mask_param=4294967295" > /etc/modprobe.d/nv-gpu-static-pg.conf
 RUN echo "blacklist nouveau" > /etc/modprobe.d/blacklist-nouveau.conf
 RUN printf 'blacklist tegradisp_nvkms\nblacklist tegradisp_rm\nblacklist nvmap\n' > /etc/modprobe.d/denylist-oot-modules.conf
+# Remove nv-graphics.service (For weston and such, not needed in our case)
+RUN systemctl disable nv-graphics.service && rm /etc/systemd/system/nv-graphics.service
 CMD ["/bin/bash", "-l"]

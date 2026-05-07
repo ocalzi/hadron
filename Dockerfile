@@ -3052,6 +3052,8 @@ RUN rsync -aHAX --keep-dirlinks  /gzip/. /merge
 COPY --from=kernel-misc /output /merge/usr/share/kernel-misc
 COPY --from=bc /bc /merge
 COPY --from=libelf /libelf /merge
+COPY --from=tpm2-tss /tpm2-tss /merge
+COPY --from=shadow-systemd /shadow /merge
 
 FROM scratch AS toolchain
 # These are the default values for the toolchain
