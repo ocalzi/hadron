@@ -165,7 +165,7 @@ WORKDIR /tmp/debs
 RUN apt-get download \
       nvidia-l4t-nvml nvidia-l4t-core nvidia-l4t-cuda nvidia-l4t-firmware-openrm nvidia-l4t-init \
       nvidia-container-toolkit-base nvidia-container-toolkit \
-      libnvidia-container-tools libnvidia-container1
+      libnvidia-container-tools libnvidia-container1 nvidia-l4t-optee
 RUN mkdir -p /output && for deb in *.deb; do dpkg-deb -x "$deb" /output; done
 RUN rm -rf /output/usr/share
 
