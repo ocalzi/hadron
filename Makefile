@@ -255,6 +255,37 @@ update-kernel-configs:
 			done'
 	@echo "Done. Review the diff and commit the updated configs."
 
+CONFIG ?= cloud
+
+# Determine kernel arch from config name at parse time
+ifeq ($(findstring arm64,$(CONFIG)),arm64)
+MENUCONFIG_KARCH := arm64
+else ifeq ($(findstring riscv64,$(CONFIG)),riscv64)
+MENUCONFIG_KARCH := riscv
+else
+MENUCONFIG_KARCH := x86_64
+endif
+
+menuconfig:
+	@if [ ! -f "files/kernel/$(CONFIG).config" ]; then \
+		echo "Config not found: files/kernel/$(CONFIG).config"; \
+		echo "Available configs:"; ls files/kernel/*.config; exit 1; \
+	fi
+	@echo "Opening menuconfig for $(CONFIG).config (ARCH=$(MENUCONFIG_KARCH))..."
+	@echo "Tip: press / to search for options (e.g. search SEV, SWIOTLB, NUMA)"
+	docker run --rm -it \
+		-v $(PWD)/files/kernel:/configs \
+		-e TERM=xterm-256color \
+		alpine:3 sh -c '\
+			apk add --no-cache make perl bash bc flex bison wget xz gcc musl-dev ncurses-dev 2>/dev/null && \
+			wget -q https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$(KERNEL_VERSION).tar.xz && \
+			tar xf linux-$(KERNEL_VERSION).tar.xz && \
+			cd linux-$(KERNEL_VERSION) && \
+			cp /configs/$(CONFIG).config .config && \
+			make ARCH=$(MENUCONFIG_KARCH) menuconfig && \
+			cp .config /configs/$(CONFIG).config'
+	@echo "Config saved to files/kernel/$(CONFIG).config"
+
 bump-deps:
 	@echo "Installing bump tool and updating dependencies..."
 	@go install github.com/wader/bump/cmd/bump@latest
