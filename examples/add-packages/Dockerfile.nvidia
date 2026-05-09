@@ -114,15 +114,17 @@ RUN cp -a sbin/nvidia-cuda-mps-server ${OUTPUT}/usr/bin/
 RUN cp -a sbin/nvidia-cuda-mps-control ${OUTPUT}/usr/bin/
 
 # ---- Copy glibc runtime ----
+# DIR_ARCH: multiarch directory name (x86_64, aarch64)
+# FILE_ARCH: ld-linux filename suffix (x86-64, aarch64)
 RUN set -eux; \
     if [ "$TARGETARCH" = "amd64" ]; then \
-        ARCH="x86-64"; \
+        DIR_ARCH="x86_64"; FILE_ARCH="x86-64"; \
     elif [ "$TARGETARCH" = "arm64" ]; then \
-        ARCH="aarch64"; \
+        DIR_ARCH="aarch64"; FILE_ARCH="aarch64"; \
     else echo "Unsupported architecture: $TARGETARCH" && exit 1; \
     fi; \
-    GLIBC=/lib/${ARCH}-linux-gnu; \
-    cp -L $GLIBC/ld-linux-${ARCH}.so* ${OUTPUT}/usr/lib/; \
+    GLIBC=/lib/${DIR_ARCH}-linux-gnu; \
+    cp -L $GLIBC/ld-linux-${FILE_ARCH}.so* ${OUTPUT}/usr/lib/; \
     cp -L $GLIBC/libc.so.6 ${OUTPUT}/usr/libc/lib/; \
     cp -L $GLIBC/libpthread.so.0 ${OUTPUT}/usr/libc/lib/; \
     cp -L $GLIBC/libm.so.6 ${OUTPUT}/usr/libc/lib/; \
