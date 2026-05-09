@@ -43,7 +43,7 @@ jobs:
             HADRON_VERSION=${{ inputs.hadron_version }}
             NVIDIA_VERSION=${{ inputs.nvidia_version }}
             JOBS=4
-            TARGETARCH=x86_64
+            KERNEL_ARCH=x86_64
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/hadron-nvidia:${{ inputs.hadron_version }}
           cache-from: type=gha
