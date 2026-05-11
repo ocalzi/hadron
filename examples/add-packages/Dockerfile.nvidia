@@ -164,3 +164,6 @@ COPY --from=builder /output/ /
 FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS hadron-extension
 COPY --link --from=modules-builder /output/ /usr/
 COPY --link --from=nvidia-builder /output/ /
+# Regenerate modules.dep with the full module tree (base kernel + nvidia).
+# The modules-builder depmod only saw nvidia modules, overwriting the base image's modules.dep.
+RUN depmod -a $(ls /usr/lib/modules/ | head -1)
