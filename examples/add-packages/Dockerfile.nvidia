@@ -3,7 +3,10 @@
 # nvidia modules use the base kernel build to build the modules (Kbuild) so it needs to match the exact version kernel you
 # are going to be run, otherwise it will mismatch and not load the modules during runtime
 ARG HADRON_VERSION=v0.0.4
-ARG BASE_IMAGE=ghcr.io/kairos-io/hadron
+# Full Kairos image ref (includes kairos-agent required by NodeOpUpgrade).
+# BASE_IMAGE_TAG must be set explicitly — it's the full quay.io tag, not just HADRON_VERSION.
+ARG BASE_IMAGE=quay.io/kairos/hadron
+ARG BASE_IMAGE_TAG=v0.0.4-standard-amd64-generic-v4.0.3-k3sv1.35.2-k3s1
 ARG JOBS
 ARG NVIDIA_VERSION=580.126.20
 ARG TARGETARCH
@@ -158,6 +161,6 @@ RUN echo "blacklist nouveau" > ${OUTPUT}/etc/modprobe.d/blacklist-nouveau.conf
 FROM scratch AS default
 COPY --from=builder /output/ /
 
-FROM ${BASE_IMAGE}:${HADRON_VERSION} AS hadron-extension
+FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS hadron-extension
 COPY --link --from=modules-builder /output/ /usr/
 COPY --link --from=nvidia-builder /output/ /
