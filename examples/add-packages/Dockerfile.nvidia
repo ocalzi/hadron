@@ -116,6 +116,28 @@ RUN cp -a sbin/nvidia-smi ${OUTPUT}/usr/bin/
 RUN cp -a sbin/nvidia-cuda-mps-server ${OUTPUT}/usr/bin/
 RUN cp -a sbin/nvidia-cuda-mps-control ${OUTPUT}/usr/bin/
 
+# nvidia-modprobe: creates /dev/nvidia* device nodes when the kernel module loads.
+# Without it the modules load at boot but udev never creates the device files,
+# so nvidia-smi fails with "couldn't communicate with the NVIDIA driver".
+# The binary in the NVIDIA redistributable has its ELF interpreter set to
+# /usr/lib/ld-linux-x86-64.so.2, so it runs correctly on musl via the glibc shim we copy below.
+WORKDIR /work/modprobe
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+    curl -L https://developer.download.nvidia.com/compute/nvidia-driver/redist/nvidia_modprobe/linux-x86_64/nvidia_modprobe-linux-x86_64-${NVIDIA_VERSION}-archive.tar.xz -o nvidia_modprobe.tar.xz; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+    curl -L https://developer.download.nvidia.com/compute/nvidia-driver/redist/nvidia_modprobe/linux-sbsa/nvidia_modprobe-linux-sbsa-${NVIDIA_VERSION}-archive.tar.xz -o nvidia_modprobe.tar.xz; \
+    else echo "Unsupported architecture: $TARGETARCH" && exit 1; \
+    fi && \
+    tar -xf nvidia_modprobe.tar.xz --strip-components=1 && \
+    cp -a bin/nvidia-modprobe ${OUTPUT}/usr/bin/
+WORKDIR /work
+
+# udev rule: trigger nvidia-modprobe when the nvidia kernel module is loaded,
+# creating /dev/nvidiactl, /dev/nvidia0, /dev/nvidia-modeset automatically.
+RUN mkdir -p ${OUTPUT}/etc/udev/rules.d && \
+    printf 'SUBSYSTEM=="module", ACTION=="add", KERNEL=="nvidia", RUN+="/usr/bin/nvidia-modprobe -c 0 -u"\n' \
+    > ${OUTPUT}/etc/udev/rules.d/71-nvidia.rules
+
 # ---- Copy glibc runtime ----
 # DIR_ARCH: multiarch directory name (x86_64, aarch64)
 # FILE_ARCH: ld-linux filename suffix (x86-64, aarch64)
@@ -152,6 +174,12 @@ RUN cp -a firmware/* ${OUTPUT}/usr/lib/firmware/nvidia/${NVIDIA_VERSION}/
 # blacklist nouveau driver by adding a conf file to modprobe.d,
 # this way the modules will autoload and not collide with nouveau
 RUN echo "blacklist nouveau" > ${OUTPUT}/etc/modprobe.d/blacklist-nouveau.conf
+
+# The NVIDIA container runtime hook mounts the host's /sbin/ldconfig into GPU containers
+# so they can rebuild their ld.so cache. Hadron (musl) has no ldconfig; without this file
+# the hook fails with "stat /sbin/ldconfig: no such file or directory" and GPU pods
+# cannot start. Copy the glibc ldconfig from this Ubuntu builder stage.
+RUN mkdir -p ${OUTPUT}/sbin && cp -a /sbin/ldconfig ${OUTPUT}/sbin/ldconfig
 
 # This target will copy the built libs or binaries binaries to a minimal image.
 # We can then use this as a layer on top of Hadron to extend it like
