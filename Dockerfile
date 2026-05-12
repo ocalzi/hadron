@@ -1890,6 +1890,12 @@ RUN rsync -aHAX --keep-dirlinks  /findutils/. /
 COPY --from=diffutils /diffutils /diffutils
 RUN rsync -aHAX --keep-dirlinks  /diffutils/. /
 
+COPY --from=kmod /kmod /kmod
+RUN rsync -aHAX --keep-dirlinks  /kmod/. /
+
+COPY --from=xz /xz /xz
+RUN rsync -aHAX --keep-dirlinks  /xz/. /
+
 COPY --from=sources-downloader /sources/downloads/linux.tar.xz /sources/
 
 RUN mkdir -p /sources/kernel-configs
@@ -1979,7 +1985,7 @@ RUN if [ ${ARCH} = "aarch64" ]; then \
     export ARCH=riscv; \
     else \
     export ARCH=x86_64;\
-    fi;  ZSTD_CLEVEL=19 INSTALL_MOD_PATH="/modules" INSTALL_MOD_STRIP=1 DEPMOD=true make -s -j${JOBS} -l${MAX_LOAD} modules_install
+    fi;  ZSTD_CLEVEL=19 INSTALL_MOD_PATH="/modules" INSTALL_MOD_STRIP=1 make -s -j${JOBS} -l${MAX_LOAD} modules_install
 
 FROM kernel-base AS kernel-headers
 ARG JOBS
