@@ -58,7 +58,8 @@ RUN apt-get update && \
         curl \
         xz-utils \
         libstdc++6 \
-        libgcc-s1 && \
+        libgcc-s1 \
+        nvidia-modprobe && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /work
@@ -119,15 +120,9 @@ RUN cp -a sbin/nvidia-cuda-mps-control ${OUTPUT}/usr/bin/
 # nvidia-modprobe: creates /dev/nvidia* device nodes when the kernel module loads.
 # Without it the modules load at boot but udev never creates the device files,
 # so nvidia-smi fails with "couldn't communicate with the NVIDIA driver".
-# nvidia_modprobe is not distributed as a separate package in the NVIDIA redistributable,
-# so we build it from source. It is a small C program with no external dependencies.
-WORKDIR /work/modprobe
-RUN apt-get install -y gcc make m4 2>/dev/null || true
-RUN curl -L https://github.com/NVIDIA/nvidia-modprobe/archive/refs/tags/${NVIDIA_VERSION}.tar.gz -o nvidia-modprobe.tar.gz && \
-    tar -xf nvidia-modprobe.tar.gz --strip-components=1 && \
-    make -s && \
-    cp -a nvidia-modprobe ${OUTPUT}/usr/bin/nvidia-modprobe
-WORKDIR /work
+# nvidia-modprobe is version-independent (reads major numbers from /proc/devices),
+# so the apt package version does not need to match the driver version.
+RUN cp -a /usr/bin/nvidia-modprobe ${OUTPUT}/usr/bin/nvidia-modprobe
 
 # udev rule: trigger nvidia-modprobe when the nvidia kernel module is loaded,
 # creating /dev/nvidiactl, /dev/nvidia0, /dev/nvidia-modeset automatically.
