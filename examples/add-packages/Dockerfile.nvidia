@@ -119,17 +119,14 @@ RUN cp -a sbin/nvidia-cuda-mps-control ${OUTPUT}/usr/bin/
 # nvidia-modprobe: creates /dev/nvidia* device nodes when the kernel module loads.
 # Without it the modules load at boot but udev never creates the device files,
 # so nvidia-smi fails with "couldn't communicate with the NVIDIA driver".
-# The binary in the NVIDIA redistributable has its ELF interpreter set to
-# /usr/lib/ld-linux-x86-64.so.2, so it runs correctly on musl via the glibc shim we copy below.
+# nvidia_modprobe is not distributed as a separate package in the NVIDIA redistributable,
+# so we build it from source. It is a small C program with no external dependencies.
 WORKDIR /work/modprobe
-RUN if [ "$TARGETARCH" = "amd64" ]; then \
-    curl -L https://developer.download.nvidia.com/compute/nvidia-driver/redist/nvidia_modprobe/linux-x86_64/nvidia_modprobe-linux-x86_64-${NVIDIA_VERSION}-archive.tar.xz -o nvidia_modprobe.tar.xz; \
-    elif [ "$TARGETARCH" = "arm64" ]; then \
-    curl -L https://developer.download.nvidia.com/compute/nvidia-driver/redist/nvidia_modprobe/linux-sbsa/nvidia_modprobe-linux-sbsa-${NVIDIA_VERSION}-archive.tar.xz -o nvidia_modprobe.tar.xz; \
-    else echo "Unsupported architecture: $TARGETARCH" && exit 1; \
-    fi && \
-    tar -xf nvidia_modprobe.tar.xz --strip-components=1 && \
-    cp -a bin/nvidia-modprobe ${OUTPUT}/usr/bin/
+RUN apt-get install -y gcc make m4 2>/dev/null || true
+RUN curl -L https://github.com/NVIDIA/nvidia-modprobe/archive/refs/tags/${NVIDIA_VERSION}.tar.gz -o nvidia-modprobe.tar.gz && \
+    tar -xf nvidia-modprobe.tar.gz --strip-components=1 && \
+    make -s && \
+    cp -a nvidia-modprobe ${OUTPUT}/usr/bin/nvidia-modprobe
 WORKDIR /work
 
 # udev rule: trigger nvidia-modprobe when the nvidia kernel module is loaded,
