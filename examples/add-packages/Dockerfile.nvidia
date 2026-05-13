@@ -124,10 +124,12 @@ RUN cp -a sbin/nvidia-cuda-mps-control ${OUTPUT}/usr/bin/
 # so the apt package version does not need to match the driver version.
 RUN cp -a /usr/bin/nvidia-modprobe ${OUTPUT}/usr/bin/nvidia-modprobe
 
-# udev rule: trigger nvidia-modprobe when the nvidia kernel module is loaded,
-# creating /dev/nvidiactl, /dev/nvidia0, /dev/nvidia-modeset automatically.
+# udev rules: create /dev/nvidia0 when nvidia module loads, /dev/nvidia-uvm when nvidia_uvm loads.
+# -c 0 creates the GPU character device; -u (without -c) creates the UVM device.
+# Do NOT combine -c 0 -u in one call — -u means "UVM mode instead of GPU mode",
+# which suppresses /dev/nvidia0 creation and leaves the GPU inaccessible.
 RUN mkdir -p ${OUTPUT}/etc/udev/rules.d && \
-    printf 'SUBSYSTEM=="module", ACTION=="add", KERNEL=="nvidia", RUN+="/usr/bin/nvidia-modprobe -c 0 -u"\n' \
+    printf 'SUBSYSTEM=="module", ACTION=="add", KERNEL=="nvidia", RUN+="/usr/bin/nvidia-modprobe -c 0"\nSUBSYSTEM=="module", ACTION=="add", KERNEL=="nvidia_uvm", RUN+="/usr/bin/nvidia-modprobe -u"\n' \
     > ${OUTPUT}/etc/udev/rules.d/71-nvidia.rules
 
 # ---- Copy glibc runtime ----
@@ -173,7 +175,9 @@ RUN echo "blacklist nouveau" > ${OUTPUT}/etc/modprobe.d/blacklist-nouveau.conf
 # cannot start. Copy to /usr/sbin/ — on Kairos /sbin is a symlink to usr/sbin, so
 # writing to /sbin/ in an OCI layer would replace the symlink with a real directory
 # and break the usr-merge, causing GRUB to fail to find /boot/vmlinuz.
-RUN mkdir -p ${OUTPUT}/usr/sbin && cp -a /sbin/ldconfig ${OUTPUT}/usr/sbin/ldconfig
+# On Ubuntu 24.04, /sbin/ldconfig is a wrapper script (387 bytes) that delegates to
+# /sbin/ldconfig.real. Copy the real binary directly.
+RUN mkdir -p ${OUTPUT}/usr/sbin && cp -a /sbin/ldconfig.real ${OUTPUT}/usr/sbin/ldconfig
 
 # This target will copy the built libs or binaries binaries to a minimal image.
 # We can then use this as a layer on top of Hadron to extend it like
