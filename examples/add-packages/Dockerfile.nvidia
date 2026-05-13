@@ -170,8 +170,10 @@ RUN echo "blacklist nouveau" > ${OUTPUT}/etc/modprobe.d/blacklist-nouveau.conf
 # The NVIDIA container runtime hook mounts the host's /sbin/ldconfig into GPU containers
 # so they can rebuild their ld.so cache. Hadron (musl) has no ldconfig; without this file
 # the hook fails with "stat /sbin/ldconfig: no such file or directory" and GPU pods
-# cannot start. Copy the glibc ldconfig from this Ubuntu builder stage.
-RUN mkdir -p ${OUTPUT}/sbin && cp -a /sbin/ldconfig ${OUTPUT}/sbin/ldconfig
+# cannot start. Copy to /usr/sbin/ — on Kairos /sbin is a symlink to usr/sbin, so
+# writing to /sbin/ in an OCI layer would replace the symlink with a real directory
+# and break the usr-merge, causing GRUB to fail to find /boot/vmlinuz.
+RUN mkdir -p ${OUTPUT}/usr/sbin && cp -a /sbin/ldconfig ${OUTPUT}/usr/sbin/ldconfig
 
 # This target will copy the built libs or binaries binaries to a minimal image.
 # We can then use this as a layer on top of Hadron to extend it like
